@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { RoleControls } from './role-controls'
+import { InviteForm } from './invite-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,8 +8,23 @@ function fmt(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default async function AdminUsers() {
+const INVITE_ERRORS: Record<string, string> = {
+  forbidden: 'Only super admins can invite teammates.',
+  email:     'Enter a valid email address.',
+  role:      'Choose a valid role.',
+  create:    'Could not create the account. The email may already be in use.',
+}
+
+export default async function AdminUsers({
+  searchParams,
+}: {
+  searchParams: { invited?: string; mode?: string; invite_error?: string }
+}) {
   const supabase = await createClient()
+
+  const invitedEmail = searchParams.invited ? decodeURIComponent(searchParams.invited) : null
+  const inviteMode   = searchParams.mode ?? null
+  const inviteError  = searchParams.invite_error ? (INVITE_ERRORS[searchParams.invite_error] ?? 'Invite failed.') : null
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -58,6 +74,26 @@ export default async function AdminUsers() {
           </div>
         ))}
       </div>
+
+      {/* Invite result banner */}
+      {invitedEmail && (
+        <div className="mt-6 rounded-xl bg-accent-soft text-accent px-4 py-3 text-[14px]">
+          {inviteMode === 'existing'
+            ? <>That account already existed — <strong>{invitedEmail}</strong> has been granted the role and notified.</>
+            : <>Invite sent to <strong>{invitedEmail}</strong> via Brevo. They&rsquo;ll activate their account from the email.</>}
+        </div>
+      )}
+      {inviteError && (
+        <div className="mt-6 rounded-xl bg-danger/10 text-danger px-4 py-3 text-[14px]">{inviteError}</div>
+      )}
+
+      {/* Invite teammate (super admins only) */}
+      {isSuperAdmin && (
+        <section className="mt-8">
+          <h2 className="text-[15px] font-semibold mb-3">Invite a teammate</h2>
+          <InviteForm />
+        </section>
+      )}
 
       {error && (
         <p className="mt-8 text-[15px] text-danger">Could not load users: {error.message}</p>

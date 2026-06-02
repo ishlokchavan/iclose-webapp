@@ -197,3 +197,63 @@ export function rmAssignmentNotification({
 
   return layout(content, `New lead assigned: ${buyerName || buyerEmail} — ${projectName}`)
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  rm:          'Relationship Manager',
+  ops_manager: 'Operations Manager',
+  finance:     'Finance',
+  super_admin: 'Super Admin',
+}
+
+export function staffInvite({
+  name,
+  role,
+  confirmUrl,
+}: {
+  name: string
+  role: string
+  confirmUrl: string
+}): string {
+  const greeting  = name ? `Hi ${name},` : 'Hi,'
+  const roleLabel = ROLE_LABEL[role] ?? role
+
+  const content = `
+    ${h1('You&rsquo;ve been invited to iClose')}
+    ${p(greeting)}
+    ${p(`You&rsquo;ve been added to the iClose team as <strong>${roleLabel}</strong>. Click below to activate your account and sign in.`)}
+    ${divider()}
+    <a href="${confirmUrl}"
+      style="display:inline-block;padding:12px 28px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;">
+      Activate your account
+    </a>
+    ${p('This link is single-use and will expire. If it stops working, ask an admin to re-send your invite.', true)}
+  `
+
+  return layout(content, `You've been invited to iClose as ${roleLabel}.`)
+}
+
+export function staffRoleAdded({
+  name,
+  role,
+  signInUrl,
+}: {
+  name: string
+  role: string
+  signInUrl: string
+}): string {
+  const greeting  = name ? `Hi ${name},` : 'Hi,'
+  const roleLabel = ROLE_LABEL[role] ?? role
+
+  const content = `
+    ${h1('Your iClose access changed')}
+    ${p(greeting)}
+    ${p(`You&rsquo;ve been granted the <strong>${roleLabel}</strong> role on iClose. Sign in to access the admin tools.`)}
+    ${divider()}
+    <a href="${signInUrl}"
+      style="display:inline-block;padding:12px 28px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;">
+      Go to iClose
+    </a>
+  `
+
+  return layout(content, `You've been granted ${roleLabel} access on iClose.`)
+}
