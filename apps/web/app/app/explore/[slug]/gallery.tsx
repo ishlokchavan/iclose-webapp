@@ -1,11 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 
 export function Gallery({ images, alt }: { images: string[]; alt: string }) {
   const [open, setOpen] = useState(false)
   const [idx, setIdx] = useState(0)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const close = useCallback(() => setOpen(false), [])
   const prev  = useCallback(() => setIdx((i) => (i - 1 + images.length) % images.length), [images.length])
@@ -27,6 +31,57 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
   }, [open, close, prev, next])
 
   if (images.length === 0) return null
+
+  const lightbox = open ? (
+    <div
+      onClick={close}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center select-none"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <span className="absolute top-4 left-4 text-white/70 text-[13px] tabular-nums">
+        {idx + 1} / {images.length}
+      </span>
+      <button
+        type="button"
+        onClick={close}
+        aria-label="Close"
+        className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center rounded-full
+          text-white/90 text-[24px] leading-none hover:bg-white/10 transition-colors"
+      >
+        ×
+      </button>
+
+      {images.length > 1 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); prev() }}
+          aria-label="Previous"
+          className="absolute left-2 sm:left-4 w-11 h-11 flex items-center justify-center rounded-full
+            text-white/90 text-[28px] leading-none hover:bg-white/10 transition-colors"
+        >
+          ‹
+        </button>
+      )}
+
+      <div className="relative w-full max-w-[1100px] h-[80vh] mx-14" onClick={(e) => e.stopPropagation()}>
+        <Image src={images[idx]} alt={`${alt} photo ${idx + 1}`} fill sizes="100vw" className="object-contain" priority />
+      </div>
+
+      {images.length > 1 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); next() }}
+          aria-label="Next"
+          className="absolute right-2 sm:right-4 w-11 h-11 flex items-center justify-center rounded-full
+            text-white/90 text-[28px] leading-none hover:bg-white/10 transition-colors"
+        >
+          ›
+        </button>
+      )}
+    </div>
+  ) : null
 
   return (
     <>
@@ -53,64 +108,9 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
         ))}
       </div>
 
-      {/* Lightbox */}
-      {open && (
-        <div
-          onClick={close}
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/92 flex items-center justify-center select-none"
-          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <span className="absolute top-4 left-4 text-white/70 text-[13px] tabular-nums">
-            {idx + 1} / {images.length}
-          </span>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close"
-            className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center rounded-full
-              text-white/90 text-[24px] leading-none hover:bg-white/10 transition-colors"
-          >
-            ×
-          </button>
-
-          {images.length > 1 && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); prev() }}
-              aria-label="Previous"
-              className="absolute left-2 sm:left-4 w-11 h-11 flex items-center justify-center rounded-full
-                text-white/90 text-[28px] leading-none hover:bg-white/10 transition-colors"
-            >
-              ‹
-            </button>
-          )}
-
-          <div className="relative w-full max-w-[1100px] h-[78vh] mx-12" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={images[idx]}
-              alt={`${alt} photo ${idx + 1}`}
-              fill
-              sizes="100vw"
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          {images.length > 1 && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); next() }}
-              aria-label="Next"
-              className="absolute right-2 sm:right-4 w-11 h-11 flex items-center justify-center rounded-full
-                text-white/90 text-[28px] leading-none hover:bg-white/10 transition-colors"
-            >
-              ›
-            </button>
-          )}
-        </div>
-      )}
+      {/* Lightbox rendered via portal so it escapes the app layout's stacking context */}
+      {mounted && lightbox ? createPortal(lightbox, document.body) : null}
     </>
   )
 }
+

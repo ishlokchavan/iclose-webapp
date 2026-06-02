@@ -2,10 +2,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 const AVAIL_STYLE: Record<string, string> = {
-  available:   'bg-accent-soft text-accent',
-  limited:     'bg-surface-3 text-warning',
-  sold_out:    'bg-surface-3 text-danger',
-  coming_soon: 'bg-surface-3 text-text-secondary',
+  available:   'text-accent',
+  limited:     'text-warning',
+  sold_out:    'text-danger',
+  coming_soon: 'text-white',
 }
 const AVAIL_LABEL: Record<string, string> = {
   available: 'Available', limited: 'Limited', sold_out: 'Sold out', coming_soon: 'Coming soon',
@@ -77,9 +77,8 @@ export function ProjectCard({ p }: { p: ProjectCardData }) {
         ) : (
           <CoverPlaceholder />
         )}
-        <span className={`absolute top-2.5 right-2.5 inline-block rounded-pill text-[11px] font-semibold px-2 py-[2px] ${
-          AVAIL_STYLE[avail] ?? 'bg-surface-3 text-text-secondary'
-        }`}>
+        <span className={`absolute top-2.5 right-2.5 inline-block rounded-pill text-[11px] font-semibold
+          px-2.5 py-[3px] bg-black/55 backdrop-blur-sm ${AVAIL_STYLE[avail] ?? 'text-white'}`}>
           {AVAIL_LABEL[avail] ?? avail}
         </span>
       </div>

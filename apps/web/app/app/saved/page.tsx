@@ -12,10 +12,10 @@ const one = <T,>(rel: Rel<T>): T | null =>
   !rel ? null : Array.isArray(rel) ? (rel[0] ?? null) : rel
 
 const AVAIL_STYLE: Record<string, string> = {
-  available:   'bg-accent-soft text-accent',
-  limited:     'bg-surface-3 text-warning',
-  sold_out:    'bg-surface-3 text-danger',
-  coming_soon: 'bg-surface-3 text-text-secondary',
+  available:   'text-accent',
+  limited:     'text-warning',
+  sold_out:    'text-danger',
+  coming_soon: 'text-white',
 }
 const AVAIL_LABEL: Record<string, string> = {
   available: 'Available', limited: 'Limited', sold_out: 'Sold out', coming_soon: 'Coming soon',
@@ -120,9 +120,8 @@ export default async function Saved() {
                         </svg>
                       </div>
                     )}
-                    <span className={`absolute top-2.5 left-2.5 inline-block rounded-pill text-[11px] font-semibold px-2 py-[2px] ${
-                      AVAIL_STYLE[avail] ?? 'bg-surface-3 text-text-secondary'
-                    }`}>
+                    <span className={`absolute top-2.5 left-2.5 inline-block rounded-pill text-[11px] font-semibold
+                      px-2.5 py-[3px] bg-black/55 backdrop-blur-sm ${AVAIL_STYLE[avail] ?? 'text-white'}`}>
                       {AVAIL_LABEL[avail] ?? avail}
                     </span>
                   </div>
