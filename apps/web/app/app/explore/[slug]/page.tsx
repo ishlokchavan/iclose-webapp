@@ -1,7 +1,8 @@
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/button'
+import { EnquireForm } from './enquire-form'
+import { submitEnquiry } from './actions'
 
 // ── types ──────────────────────────────────────────────────────────────
 type Rel<T> = T | T[] | null
@@ -80,8 +81,21 @@ function PlanBreakdown({ structure }: { structure: Record<string, number> | null
 }
 
 // ── page ────────────────────────────────────────────────────────────────
-export default async function ProjectDetail({ params }: { params: { slug: string } }) {
+export default async function ProjectDetail({
+  params,
+  searchParams,
+}: {
+  params: { slug: string }
+  searchParams: { enquired?: string }
+}) {
   const supabase = await createClient()
+  const enquired = searchParams.enquired === '1'
+
+  // Fetch profile for form pre-fill
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('full_name, phone').eq('id', user.id).maybeSingle()
+    : { data: null }
 
   const { data } = await supabase
     .from('projects')
@@ -102,18 +116,12 @@ export default async function ProjectDetail({ params }: { params: { slug: string
   if (!data) notFound()
   const p = data as unknown as Project
 
-  const units = [...(p.units ?? [])].sort((a, b) => (a.bedrooms ?? 0) - (b.bedrooms ?? 0))
-  const faqs  = [...(p.faqs ?? [])].sort((a, b) => a.sort_order - b.sort_order)
-  const plan  = p.payment_plans?.[0] ?? null
+  const units     = [...(p.units ?? [])].sort((a, b) => (a.bedrooms ?? 0) - (b.bedrooms ?? 0))
+  const faqs      = [...(p.faqs ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const plan      = p.payment_plans?.[0] ?? null
   const developer = one(p.developer)
   const area      = one(p.area)
-
-  // Stub — replaced with real lead creation in the next sprint.
-  async function enquire(formData: FormData) {
-    'use server'
-    void formData
-    redirect('/app/me?enquired=1')
-  }
+  const unitTypes = units.map((u) => u.unit_type).filter((t): t is string => !!t)
 
   return (
     <div className="max-w-[840px]">
@@ -230,14 +238,30 @@ export default async function ProjectDetail({ params }: { params: { slug: string
         </section>
       )}
 
-      {/* Enquire CTA */}
-      <section className="mt-10 pt-8 border-t border-separator">
-        <p className="text-[15px] text-text-secondary mb-4">
-          Your dedicated relationship manager will guide you through this project — honest answers, no pressure.
-        </p>
-        <form action={enquire}>
-          <Button size="lg" className="w-full sm:w-auto">Enquire about this project</Button>
-        </form>
+      {/* Enquire / success */}
+      <section className="mt-10 pt-8 border-t border-separator" id="enquire">
+        {enquired ? (
+          <div className="rounded-2xl bg-surface-2 p-6">
+            <p className="text-[17px] font-semibold">Enquiry received</p>
+            <p className="mt-2 text-[15px] text-text-secondary">
+              Your relationship manager will be in touch within one business day.
+            </p>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-[20px] font-semibold mb-1">Enquire about this project</h2>
+            <p className="text-[15px] text-text-secondary mb-6">
+              Your dedicated relationship manager will guide you through this project — honest answers, no pressure.
+            </p>
+            <EnquireForm
+              action={submitEnquiry}
+              projectSlug={p.slug}
+              defaultName={profile?.full_name ?? ''}
+              defaultPhone={(profile as { phone?: string } | null)?.phone ?? ''}
+              unitTypes={unitTypes}
+            />
+          </>
+        )}
       </section>
     </div>
   )
