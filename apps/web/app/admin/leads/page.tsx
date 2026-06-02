@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { StatusSelect } from './status-select'
+import { AssignSelect } from './assign-select'
 
 export const dynamic = 'force-dynamic'
+
+const STAFF_ROLES = ['rm', 'ops_manager', 'finance', 'super_admin']
 
 type Rel<T> = T | T[] | null
 const one = <T,>(rel: Rel<T>): T | null =>
@@ -9,6 +12,7 @@ const one = <T,>(rel: Rel<T>): T | null =>
 
 type Lead = {
   id: string; status: string; unit_type: string | null; created_at: string
+  assigned_rm: string | null
   buyer:   Rel<{ full_name: string | null; email: string | null; phone: string | null }>
   project: Rel<{ name: string }>
   lead_attribution: Rel<{ source: string | null; referrer: string | null }>
@@ -23,8 +27,8 @@ export default async function AdminLeads() {
   const { data, error } = await supabase
     .from('leads')
     .select(`
-      id, status, unit_type, created_at,
-      buyer:profiles(full_name, email, phone),
+      id, status, unit_type, created_at, assigned_rm,
+      buyer:profiles!leads_buyer_id_fkey(full_name, email, phone),
       project:projects(name),
       lead_attribution(source, referrer)
     `)
@@ -32,6 +36,21 @@ export default async function AdminLeads() {
     .order('created_at', { ascending: false })
 
   const leads = (data ?? []) as unknown as Lead[]
+
+  // Staff who can be assigned as RM (distinct profiles holding any staff role).
+  const { data: staffRows } = await supabase
+    .from('profile_roles')
+    .select('role, profile:profiles!profile_roles_profile_id_fkey(id, full_name, email)')
+    .in('role', STAFF_ROLES)
+
+  const staffMap = new Map<string, { id: string; label: string }>()
+  for (const row of (staffRows ?? []) as unknown as {
+    profile: Rel<{ id: string; full_name: string | null; email: string | null }>
+  }[]) {
+    const prof = one(row.profile)
+    if (prof) staffMap.set(prof.id, { id: prof.id, label: prof.full_name ?? prof.email ?? 'Staff' })
+  }
+  const staff = [...staffMap.values()].sort((a, b) => a.label.localeCompare(b.label))
 
   const counts = leads.reduce(
     (acc, l) => ({ ...acc, [l.status]: (acc[l.status] ?? 0) + 1 }),
@@ -104,7 +123,8 @@ export default async function AdminLeads() {
                   </p>
                 </div>
 
-                <div className="shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
+                  <AssignSelect leadId={lead.id} current={lead.assigned_rm} staff={staff} />
                   <StatusSelect leadId={lead.id} current={lead.status} />
                 </div>
               </div>

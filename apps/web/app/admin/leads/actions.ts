@@ -32,3 +32,39 @@ export async function updateLeadStatus(formData: FormData) {
 
   revalidatePath('/admin/leads')
 }
+
+export async function assignLead(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: roles } = await supabase
+    .from('profile_roles').select('role').eq('profile_id', user.id)
+  const isStaff = (roles ?? []).some((r: { role: string }) =>
+    (STAFF_ROLES as readonly string[]).includes(r.role))
+  if (!isStaff) return
+
+  const id     = String(formData.get('id')       ?? '').trim()
+  const rawRm  = String(formData.get('assigned_rm') ?? '').trim()
+  const rm     = rawRm || null
+  if (!id) return
+
+  // Assigning a previously-new lead moves it to 'assigned'; unassigning leaves status alone.
+  const patch: Record<string, unknown> = { assigned_rm: rm }
+  if (rm) {
+    const { data: lead } = await supabase.from('leads').select('status').eq('id', id).maybeSingle()
+    if (lead?.status === 'new') patch.status = 'assigned'
+  }
+
+  await supabase.from('leads').update(patch).eq('id', id)
+
+  await supabase.from('audit_log').insert({
+    actor_id:    user.id,
+    action:      rm ? 'lead.assign' : 'lead.unassign',
+    entity_type: 'lead',
+    entity_id:   id,
+    after:       { assigned_rm: rm },
+  })
+
+  revalidatePath('/admin/leads')
+}
