@@ -5,10 +5,29 @@ export type EmailPayload = {
   to: { email: string; name?: string }
   subject: string
   html: string
+  text?: string
   replyTo?: string
 }
 
 export type SendResult = { ok: boolean; skipped?: boolean; error?: string }
+
+// Crude HTML→text for the multipart/alternative plaintext part.
+// A text alternative meaningfully lowers spam score vs HTML-only.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '$2 ($1)')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h1|h2|h3|tr|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&rsquo;/gi, '’')
+    .replace(/&amp;/gi, '&')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+}
 
 // Cached across warm serverless invocations.
 let transporter: Transporter | null = null
@@ -40,11 +59,12 @@ export async function sendEmail(payload: EmailPayload): Promise<SendResult> {
 
   try {
     await tx.sendMail({
-      from:    `iClose <${from}>`,
-      to:      payload.to.name ? `${payload.to.name} <${payload.to.email}>` : payload.to.email,
+      from:    { name: 'iClose', address: from },
+      to:      payload.to.name ? { name: payload.to.name, address: payload.to.email } : payload.to.email,
       subject: payload.subject,
       html:    payload.html,
-      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+      text:    payload.text ?? htmlToText(payload.html),
+      replyTo: payload.replyTo ?? from,
     })
     return { ok: true }
   } catch (err) {
