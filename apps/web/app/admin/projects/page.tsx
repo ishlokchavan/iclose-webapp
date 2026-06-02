@@ -51,10 +51,17 @@ export default async function AdminProjects() {
 
   return (
     <div>
-      <h1 className="text-[28px] font-semibold tracking-[-0.02em]">Projects</h1>
-      <p className="mt-2 text-[15px] text-text-secondary">
-        Publish a project to make it visible on Explore. Unpublish to pull it back to draft; archive to retire it.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em]">Projects</h1>
+          <p className="mt-2 text-[15px] text-text-secondary">
+            Publish a project to make it visible on Explore. Unpublish to pull it back to draft; archive to retire it.
+          </p>
+        </div>
+        <Link href="/admin/projects/new" className="shrink-0">
+          <Button type="button" size="sm">New project</Button>
+        </Link>
+      </div>
 
       <p className="mt-3 text-[13px] text-text-tertiary tabular-nums">
         {counts['published'] ?? 0} published · {counts['draft'] ?? 0} draft · {counts['archived'] ?? 0} archived

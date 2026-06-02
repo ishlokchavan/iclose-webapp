@@ -1,7 +1,56 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+
+async function assertStaff() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const STAFF = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
+  const { data: roles } = await supabase
+    .from('profile_roles').select('role').eq('profile_id', user.id)
+  const ok = (roles ?? []).some((r: { role: string }) => (STAFF as readonly string[]).includes(r.role))
+  return ok ? supabase : null
+}
+
+function num(v: FormDataEntryValue | null): number | null {
+  const n = parseFloat(String(v ?? ''))
+  return isNaN(n) ? null : n
+}
+
+export async function updateProject(formData: FormData) {
+  const supabase = await assertStaff()
+  if (!supabase) return
+
+  const currentSlug = String(formData.get('current_slug') ?? '').trim()
+  const { data: project } = await supabase
+    .from('projects').select('id, status').eq('slug', currentSlug).maybeSingle()
+  if (!project) return
+
+  const patch = {
+    name:               String(formData.get('name')         ?? '').trim() || undefined,
+    developer_id:       String(formData.get('developer_id') ?? '').trim() || null,
+    area_id:            String(formData.get('area_id')      ?? '').trim() || null,
+    description:        String(formData.get('description')  ?? '').trim() || null,
+    handover_quarter:   String(formData.get('handover_quarter') ?? '').trim() || null,
+    availability:       String(formData.get('availability') ?? '').trim() || null,
+    price_from:         num(formData.get('price_from')),
+    price_to:           num(formData.get('price_to')),
+    currency:           String(formData.get('currency') ?? 'AED').trim(),
+    est_yield_pct:      num(formData.get('est_yield_pct')),
+    commission_pct:     num(formData.get('commission_pct')),
+    cashback_payout_pct: num(formData.get('cashback_payout_pct')),
+    cashback_floor:     num(formData.get('cashback_floor')) ?? 0,
+    updated_at:         new Date().toISOString(),
+  }
+
+  await supabase.from('projects').update(patch).eq('id', project.id)
+  revalidatePath(`/admin/projects/${currentSlug}`)
+  revalidatePath(`/app/explore/${currentSlug}`)
+  revalidatePath('/admin/projects')
+}
 
 function parseYouTubeId(raw: string): string | null {
   const s = raw.trim()
