@@ -3,6 +3,8 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/email'
+import { enquiryConfirmation, newLeadNotification } from '@/lib/email/templates'
 
 export async function submitEnquiry(formData: FormData) {
   const supabase = await createClient()
@@ -17,7 +19,7 @@ export async function submitEnquiry(formData: FormData) {
   // Fetch project (published check is a safety gate; RLS is primary)
   const { data: project } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, name')
     .eq('slug', projectSlug)
     .eq('status', 'published')
     .is('deleted_at', null)
@@ -58,6 +60,50 @@ export async function submitEnquiry(formData: FormData) {
         referrer: referer,
         utm:      {},
       })
+
+      // Emails are fire-and-forget; don't let failures block the redirect
+      const buyerEmail = user.email ?? ''
+      const buyerName  = name || ''
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .maybeSingle()
+      const resolvedName  = buyerName  || (profile?.full_name as string | null) || ''
+      const resolvedPhone = phone      || (profile?.phone     as string | null) || null
+
+      void Promise.all([
+        // Confirmation to buyer
+        buyerEmail
+          ? sendEmail({
+              to:      { email: buyerEmail, name: resolvedName || undefined },
+              subject: `Your enquiry for ${project.name} — iClose`,
+              html:    enquiryConfirmation({
+                buyerName:   resolvedName,
+                projectName: project.name,
+                projectSlug,
+                unitType,
+              }),
+            })
+          : Promise.resolve(),
+
+        // Notification to admin inbox
+        process.env.BREVO_ADMIN_EMAIL
+          ? sendEmail({
+              to:      { email: process.env.BREVO_ADMIN_EMAIL },
+              subject: `New lead: ${resolvedName || buyerEmail} → ${project.name}`,
+              html:    newLeadNotification({
+                buyerName:   resolvedName,
+                buyerEmail,
+                buyerPhone:  resolvedPhone,
+                projectName: project.name,
+                projectSlug,
+                unitType,
+                leadId:      lead.id,
+              }),
+            })
+          : Promise.resolve(),
+      ]).catch((err) => console.error('[email] send error', err))
     }
   }
 
