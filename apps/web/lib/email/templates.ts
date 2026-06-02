@@ -205,6 +205,21 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
 }
 
+export function magicLink({ confirmUrl }: { confirmUrl: string }): string {
+  const content = `
+    ${h1('Sign in to iClose')}
+    ${p('Click below to sign in. This link is single-use and expires shortly.')}
+    ${divider()}
+    <a href="${confirmUrl}"
+      style="display:inline-block;padding:12px 28px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;">
+      Sign in
+    </a>
+    ${p('If you didn&rsquo;t request this, you can safely ignore this email.', true)}
+  `
+
+  return layout(content, 'Your single-use sign-in link for iClose.')
+}
+
 export function staffInvite({
   name,
   role,

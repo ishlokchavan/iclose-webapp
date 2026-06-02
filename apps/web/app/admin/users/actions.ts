@@ -2,11 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email'
 import { staffInvite, staffRoleAdded } from '@/lib/email/templates'
+import { getSiteOrigin } from '@/lib/site'
 
 const STAFF_ROLES = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
 
@@ -18,14 +18,6 @@ async function assertSuperAdmin() {
     .from('profile_roles').select('role').eq('profile_id', user.id)
   const ok = (roles ?? []).some((r: { role: string }) => r.role === 'super_admin')
   return ok ? supabase : null
-}
-
-async function siteOrigin() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  const h = await headers()
-  const host  = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000'
-  const proto = host.startsWith('localhost') ? 'http' : 'https'
-  return `${proto}://${host}`
 }
 
 export async function grantRole(formData: FormData) {
@@ -78,7 +70,7 @@ export async function inviteStaff(formData: FormData) {
   if (!(STAFF_ROLES as readonly string[]).includes(role)) redirect('/admin/users?invite_error=role')
 
   const admin  = createAdminClient()
-  const origin = await siteOrigin()
+  const origin = await getSiteOrigin()
 
   // Does a profile already exist for this email?
   const { data: existing } = await userClient
