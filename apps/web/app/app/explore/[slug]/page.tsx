@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { EnquireForm } from './enquire-form'
 import { submitEnquiry } from './actions'
 import { YouTubeEmbed } from '@/components/ui/youtube-embed'
+import { SaveButton } from './save-button'
 
 // ── types ──────────────────────────────────────────────────────────────
 type Rel<T> = T | T[] | null
@@ -95,8 +96,9 @@ export default async function ProjectDetail({
   const supabase = await createClient()
   const enquired = searchParams.enquired === '1'
 
-  // Fetch profile for form pre-fill
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Fetch profile for form pre-fill
   const { data: profile } = user
     ? await supabase.from('profiles').select('full_name, phone').eq('id', user.id).maybeSingle()
     : { data: null }
@@ -120,6 +122,13 @@ export default async function ProjectDetail({
 
   if (!data) notFound()
   const p = data as unknown as Project
+
+  // Check saved state now that we have project.id
+  const { data: savedRow } = user
+    ? await supabase.from('saved_items').select('id')
+        .eq('buyer_id', user.id).eq('project_id', p.id).is('unit_id', null).maybeSingle()
+    : { data: null }
+  const isSaved = !!savedRow
 
   const units     = [...(p.units ?? [])].sort((a, b) => (a.bedrooms ?? 0) - (b.bedrooms ?? 0))
   const faqs      = [...(p.faqs ?? [])].sort((a, b) => a.sort_order - b.sort_order)
@@ -152,9 +161,16 @@ export default async function ProjectDetail({
           </span>
         )}
       </div>
-      <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] leading-tight">
-        {p.name}
-      </h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-[32px] md:text-[40px] font-semibold tracking-[-0.02em] leading-tight">
+          {p.name}
+        </h1>
+        {user && (
+          <div className="shrink-0 mt-1">
+            <SaveButton projectId={p.id} slug={p.slug} saved={isSaved} />
+          </div>
+        )}
+      </div>
       {(developer || area) && (
         <p className="mt-2 text-[15px] text-text-secondary">
           {[developer?.name, area?.name].filter(Boolean).join(' · ')}
