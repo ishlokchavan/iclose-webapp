@@ -29,8 +29,8 @@ type Project = {
   handover_quarter: string | null
   price_from: number | null; price_to: number | null
   currency: string | null; availability: string | null; est_yield_pct: number | null
-  developer: Rel<{ name: string; website: string | null }>
-  area: Rel<{ name: string }>
+  developer: Rel<{ name: string; slug: string; website: string | null }>
+  area: Rel<{ name: string; slug: string }>
   units: Unit[]; payment_plans: Plan[]; faqs: FAQ[]
   project_media: ProjectMedia[]
 }
@@ -108,8 +108,8 @@ export default async function ProjectDetail({
     .select(`
       id, slug, name, description,
       handover_quarter, price_from, price_to, currency, availability, est_yield_pct,
-      developer:developers(name, website),
-      area:areas(name),
+      developer:developers(name, slug, website),
+      area:areas(name, slug),
       units(id, unit_type, bedrooms, size_sqft, price_from, currency, availability),
       payment_plans(id, name, structure, notes),
       faqs(id, question, answer, sort_order),
@@ -173,7 +173,17 @@ export default async function ProjectDetail({
       </div>
       {(developer || area) && (
         <p className="mt-2 text-[15px] text-text-secondary">
-          {[developer?.name, area?.name].filter(Boolean).join(' · ')}
+          {developer && (
+            <Link href={`/app/developers/${developer.slug}`} className="hover:text-accent transition-colors">
+              {developer.name}
+            </Link>
+          )}
+          {developer && area && ' · '}
+          {area && (
+            <Link href={`/app/areas/${area.slug}`} className="hover:text-accent transition-colors">
+              {area.name}
+            </Link>
+          )}
         </p>
       )}
 
