@@ -151,3 +151,49 @@ export function newLeadNotification({
 
   return layout(content, `New lead from ${buyerName || buyerEmail} — ${projectName}`)
 }
+
+export function rmAssignmentNotification({
+  rmName,
+  buyerName,
+  buyerEmail,
+  buyerPhone,
+  projectName,
+  unitType,
+  leadId,
+  slaDate,
+}: {
+  rmName: string
+  buyerName: string
+  buyerEmail: string
+  buyerPhone: string | null
+  projectName: string
+  unitType: string | null
+  leadId: string
+  slaDate: string | null
+}): string {
+  const greeting = rmName ? `Hi ${rmName},` : 'Hi,'
+
+  const rows: [string, string][] = [
+    ['Buyer',    buyerName  || '—'],
+    ['Email',    buyerEmail || '—'],
+    ['Phone',    buyerPhone || '—'],
+    ['Project',  projectName],
+    ...(unitType ? [['Unit type', unitType] as [string, string]] : []),
+    ...(slaDate  ? [['Respond by', new Date(slaDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })] as [string, string]] : []),
+  ]
+
+  const content = `
+    ${h1('You have a new lead')}
+    ${p(greeting)}
+    ${p(`You've been assigned a lead for <strong>${projectName}</strong>. Reach out to the buyer within the SLA window.`)}
+    ${divider()}
+    ${table(rows)}
+    ${divider()}
+    <a href="https://iclose.ae/admin/leads/${leadId}"
+      style="display:inline-block;padding:12px 24px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:14px;font-weight:600;text-decoration:none;">
+      View lead
+    </a>
+  `
+
+  return layout(content, `New lead assigned: ${buyerName || buyerEmail} — ${projectName}`)
+}

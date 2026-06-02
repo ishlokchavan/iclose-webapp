@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/email'
+import { rmAssignmentNotification } from '@/lib/email/templates'
 
 const STAFF_ROLES = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
 
@@ -65,6 +67,51 @@ export async function assignLead(formData: FormData) {
     entity_id:   id,
     after:       { assigned_rm: rm },
   })
+
+  // Notify the RM by email when they are assigned
+  if (rm) {
+    void (async () => {
+      try {
+        const [{ data: rmProfile }, { data: leadFull }] = await Promise.all([
+          supabase.from('profiles').select('full_name, email').eq('id', rm).maybeSingle(),
+          supabase.from('leads')
+            .select(`
+              unit_type, sla_first_response_due,
+              buyer:profiles!leads_buyer_id_fkey(full_name, email, phone),
+              project:projects(name)
+            `)
+            .eq('id', id)
+            .maybeSingle(),
+        ])
+
+        if (!rmProfile?.email || !leadFull) return
+
+        type Rel<T> = T | T[] | null
+        const one = <T,>(r: Rel<T>): T | null =>
+          !r ? null : Array.isArray(r) ? (r[0] ?? null) : r
+
+        const buyer   = one((leadFull as any).buyer)
+        const project = one((leadFull as any).project)
+
+        await sendEmail({
+          to:      { email: rmProfile.email, name: rmProfile.full_name ?? undefined },
+          subject: `New lead: ${(buyer as any)?.full_name || (buyer as any)?.email || 'Buyer'} → ${(project as any)?.name ?? 'Project'}`,
+          html:    rmAssignmentNotification({
+            rmName:      rmProfile.full_name ?? '',
+            buyerName:   (buyer as any)?.full_name ?? '',
+            buyerEmail:  (buyer as any)?.email ?? '',
+            buyerPhone:  (buyer as any)?.phone ?? null,
+            projectName: (project as any)?.name ?? '—',
+            unitType:    leadFull.unit_type ?? null,
+            leadId:      id,
+            slaDate:     leadFull.sla_first_response_due ?? null,
+          }),
+        })
+      } catch (err) {
+        console.error('[email] RM assignment notification failed', err)
+      }
+    })()
+  }
 
   revalidatePath('/admin/leads')
 }
