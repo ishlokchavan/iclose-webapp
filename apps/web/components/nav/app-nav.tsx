@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type NavItem = {
   href: string
@@ -67,12 +68,16 @@ export function AppNav() {
                   active ? 'bg-accent-soft text-accent' : 'text-text-secondary hover:bg-surface-2 hover:text-text'
                 }`}
               >
-                <Icon active={active} />
+    <Icon active={active} />
                 {label}
               </Link>
             )
           })}
         </nav>
+        <div className="p-3 border-t border-separator flex items-center justify-between">
+          <span className="text-[13px] text-text-tertiary px-1">Theme</span>
+          <ThemeToggle />
+        </div>
       </aside>
 
       {/* Mobile: fixed bottom nav */}
