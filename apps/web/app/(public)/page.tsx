@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Home() {
   return (
@@ -8,7 +9,10 @@ export default function Home() {
         <span className="text-[20px] font-semibold tracking-tight">
           <span className="text-accent">i</span>Close
         </span>
-        <Link href="/auth/sign-in"><Button variant="tinted" size="sm">Sign in</Button></Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/auth/sign-in"><Button variant="tinted" size="sm">Sign in</Button></Link>
+        </div>
       </header>
 
       <section className="px-6 md:px-16 pt-16 md:pt-32 max-w-[1120px] mx-auto">
