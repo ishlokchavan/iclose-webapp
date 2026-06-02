@@ -50,6 +50,17 @@ const NAV: NavItem[] = [
     ),
   },
   {
+    href: '/admin/transactions',
+    label: 'Deals',
+    Icon: ({ active }) => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth={active ? 2.1 : 1.75} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7h18M3 7l2-3h14l2 3M3 7v12a1 1 0 001 1h16a1 1 0 001-1V7" />
+        <path d="M9 11a3 3 0 006 0" />
+      </svg>
+    ),
+  },
+  {
     href: '/admin/users',
     label: 'Users',
     Icon: ({ active }) => (

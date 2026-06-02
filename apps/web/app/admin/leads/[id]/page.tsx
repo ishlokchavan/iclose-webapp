@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { StatusSelect } from '../status-select'
 import { AssignSelect } from '../assign-select'
 import { ActivityForm, ActivityIcon } from './activity-form'
+import { convertLeadToTransaction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +61,10 @@ export default async function LeadDetail({ params }: { params: { id: string } })
     .maybeSingle()
 
   if (!leadRaw) notFound()
+
+  // Existing transaction for this lead (if already converted).
+  const { data: existingTxn } = await supabase
+    .from('transactions').select('id').eq('lead_id', params.id).maybeSingle()
 
   type Lead = typeof leadRaw & {
     buyer: Rel<{ id: string; full_name: string | null; email: string | null; phone: string | null }>
@@ -139,6 +144,24 @@ export default async function LeadDetail({ params }: { params: { id: string } })
           <AssignSelect leadId={lead.id} current={lead.assigned_rm} staff={staff} />
           <StatusSelect leadId={lead.id} current={lead.status} />
         </div>
+      </div>
+
+      {/* Convert / view transaction */}
+      <div className="mt-4">
+        {existingTxn ? (
+          <Link href={`/admin/transactions/${existingTxn.id}`}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-surface-2 hover:bg-surface-3 text-[13px] font-semibold transition-colors">
+            View transaction →
+          </Link>
+        ) : (
+          <form action={convertLeadToTransaction}>
+            <input type="hidden" name="lead_id" value={lead.id} />
+            <button type="submit"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-accent text-white text-[13px] font-semibold hover:opacity-90 transition-opacity">
+              Convert to transaction
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Meta grid */}

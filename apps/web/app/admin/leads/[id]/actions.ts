@@ -1,7 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { recordAudit } from '@/lib/audit'
 
 const STAFF_ROLES = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
 
@@ -40,4 +42,51 @@ export async function addActivity(formData: FormData) {
     .is('first_responded_at', null)
 
   revalidatePath(`/admin/leads/${leadId}`)
+}
+
+// Convert a qualified lead into an off-plan transaction (status=reserved),
+// mark the lead converted, and open the new transaction.
+export async function convertLeadToTransaction(formData: FormData) {
+  const ctx = await assertStaff()
+  if (!ctx) return
+
+  const leadId = String(formData.get('lead_id') ?? '').trim()
+  if (!leadId) return
+
+  const { data: lead } = await ctx.supabase
+    .from('leads')
+    .select('id, buyer_id, project_id, unit_type')
+    .eq('id', leadId)
+    .maybeSingle()
+  if (!lead) return
+
+  // Reuse an existing transaction for this lead if one already exists.
+  const { data: existing } = await ctx.supabase
+    .from('transactions').select('id').eq('lead_id', leadId).maybeSingle()
+  if (existing) redirect(`/admin/transactions/${existing.id}`)
+
+  const { data: txn } = await ctx.supabase
+    .from('transactions')
+    .insert({
+      lead_id:    lead.id,
+      buyer_id:   lead.buyer_id,
+      project_id: lead.project_id,
+      type:       'offplan_primary',
+      status:     'reserved',
+      currency:   'AED',
+    })
+    .select('id')
+    .single()
+
+  if (!txn) return
+
+  await ctx.supabase.from('leads').update({ status: 'converted' }).eq('id', leadId)
+
+  await recordAudit(ctx.supabase, {
+    actorId: ctx.user.id, action: 'txn.create', entityType: 'transaction', entityId: txn.id,
+    after: { lead_id: leadId, status: 'reserved' },
+  })
+
+  revalidatePath(`/admin/leads/${leadId}`)
+  redirect(`/admin/transactions/${txn.id}`)
 }
