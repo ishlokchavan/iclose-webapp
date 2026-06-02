@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { RoleControls } from './role-controls'
 import { InviteForm } from './invite-form'
+import { DeleteUser } from './delete-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,10 @@ const INVITE_ERRORS: Record<string, string> = {
 export default async function AdminUsers({
   searchParams,
 }: {
-  searchParams: { invited?: string; mode?: string; invite_error?: string; email_failed?: string; t?: string }
+  searchParams: {
+    invited?: string; mode?: string; invite_error?: string; email_failed?: string; t?: string
+    deleted?: string; delete_error?: string
+  }
 }) {
   const supabase = await createClient()
 
@@ -30,6 +34,15 @@ export default async function AdminUsers({
     : null
   // Changes on every submit so the uncontrolled invite form remounts (clears).
   const formKey = searchParams.t ?? 'idle'
+
+  const deleted = searchParams.deleted === '1'
+  const rawDeleteErr = searchParams.delete_error ? decodeURIComponent(searchParams.delete_error) : null
+  const deleteError = !rawDeleteErr ? null
+    : rawDeleteErr === 'self'      ? 'You can’t delete your own account.'
+    : rawDeleteErr === 'forbidden' ? 'Only super admins can delete users.'
+    : /foreign key|violates/i.test(rawDeleteErr)
+      ? 'Can’t delete this user — they have linked records (lead activity, audit history, or transactions). Revoke their roles instead.'
+      : `Delete failed: ${rawDeleteErr}`
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -106,6 +119,16 @@ export default async function AdminUsers({
         <div className="mt-6 rounded-xl bg-danger/10 text-danger px-4 py-3 text-[14px]">{inviteError}</div>
       )}
 
+      {/* Delete result banner */}
+      {deleted && (
+        <div className="mt-6 rounded-xl bg-accent-soft text-accent px-4 py-3 text-[14px]">
+          User deleted.
+        </div>
+      )}
+      {deleteError && (
+        <div className="mt-6 rounded-xl bg-danger/10 text-danger px-4 py-3 text-[14px]">{deleteError}</div>
+      )}
+
       {/* Invite teammate (super admins only) */}
       {isSuperAdmin && (
         <section className="mt-8">
@@ -146,12 +169,15 @@ export default async function AdminUsers({
                     Joined {fmt(p.created_at)}
                   </p>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex items-center gap-4">
                   <RoleControls
                     profileId={p.id}
                     currentRoles={roles}
                     canManage={isSuperAdmin}
                   />
+                  {isSuperAdmin && user && p.id !== user.id && (
+                    <DeleteUser profileId={p.id} label={p.full_name ?? p.email ?? 'this user'} />
+                  )}
                 </div>
               </div>
             )

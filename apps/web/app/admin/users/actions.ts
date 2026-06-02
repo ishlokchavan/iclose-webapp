@@ -56,6 +56,31 @@ export async function revokeRole(formData: FormData) {
   revalidatePath('/admin/users')
 }
 
+// Hard-delete a user (auth.users → cascades to profile + CASCADE children;
+// leads.buyer_id is nulled; append-only/financial tables block the delete).
+export async function deleteUser(formData: FormData) {
+  const userClient = await assertSuperAdmin()
+  if (!userClient) redirect('/admin/users?delete_error=forbidden')
+
+  const profileId = String(formData.get('profile_id') ?? '').trim()
+  if (!profileId) redirect('/admin/users')
+
+  // Never let a super admin delete their own account (lock-out protection).
+  const { data: { user } } = await userClient.auth.getUser()
+  if (user?.id === profileId) redirect('/admin/users?delete_error=self')
+
+  const admin = createAdminClient()
+  const { error } = await admin.auth.admin.deleteUser(profileId)
+
+  if (error) {
+    console.error('[delete user] failed', error)
+    redirect(`/admin/users?delete_error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath('/admin/users')
+  redirect('/admin/users?deleted=1')
+}
+
 // Invite a teammate as staff. Creates the account if needed and emails the
 // invite link via Brevo — Supabase's own mailer is never used.
 export async function inviteStaff(formData: FormData) {
