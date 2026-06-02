@@ -1,10 +1,10 @@
 'use client'
 
+import { useRef } from 'react'
 import { useFormStatus } from 'react-dom'
 import { grantRole, revokeRole } from './actions'
 
 const GRANTABLE = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
-type GrantableRole = typeof GRANTABLE[number]
 
 const ROLE_LABEL: Record<string, string> = {
   buyer:       'Buyer',
@@ -33,17 +33,6 @@ function RevokeBtn() {
   )
 }
 
-function GrantBtn() {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending}
-      className="h-7 px-3 rounded-lg bg-surface-2 hover:bg-surface-3 text-[12px] font-medium
-        transition-colors disabled:opacity-50">
-      {pending ? '…' : 'Grant'}
-    </button>
-  )
-}
-
 export function RoleControls({
   profileId,
   currentRoles,
@@ -54,6 +43,7 @@ export function RoleControls({
   canManage: boolean
 }) {
   const available = GRANTABLE.filter((r) => !currentRoles.includes(r))
+  const formRef   = useRef<HTMLFormElement>(null)
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -73,16 +63,22 @@ export function RoleControls({
       ))}
 
       {canManage && available.length > 0 && (
-        <form action={grantRole} className="flex items-center gap-1.5">
+        <form ref={formRef} action={grantRole}>
           <input type="hidden" name="profile_id" value={profileId} />
-          <select name="role" defaultValue=""
-            className="h-7 px-2 rounded-lg bg-surface-2 text-[12px] outline-none cursor-pointer appearance-none">
+          <select
+            name="role"
+            defaultValue=""
+            onChange={(e) => {
+              if (e.currentTarget.value) formRef.current?.requestSubmit()
+            }}
+            className="h-7 px-2 rounded-lg bg-surface-2 text-[12px] outline-none
+              cursor-pointer appearance-none hover:bg-surface-3 transition-colors"
+          >
             <option value="" disabled>Add role…</option>
             {available.map((r) => (
               <option key={r} value={r}>{ROLE_LABEL[r]}</option>
             ))}
           </select>
-          <GrantBtn />
         </form>
       )}
     </div>
