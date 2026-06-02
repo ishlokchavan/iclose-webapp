@@ -5,6 +5,7 @@ import { EnquireForm } from './enquire-form'
 import { submitEnquiry } from './actions'
 import { YouTubeEmbed } from '@/components/ui/youtube-embed'
 import { SaveButton } from './save-button'
+import { Gallery } from './gallery'
 
 // ── types ──────────────────────────────────────────────────────────────
 type Rel<T> = T | T[] | null
@@ -216,24 +217,7 @@ export default async function ProjectDetail({
       {/* Gallery */}
       {galleryImages.length > 0 && (
         <section className="mt-8">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            {galleryImages.map((url, i) => (
-              <a
-                key={url}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`relative block overflow-hidden rounded-2xl bg-surface-2 ${
-                  i === 0 ? 'col-span-2 aspect-[16/9]' : 'aspect-[4/3]'
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`${p.name} photo ${i + 1}`}
-                  className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300"
-                  loading={i === 0 ? 'eager' : 'lazy'} />
-              </a>
-            ))}
-          </div>
+          <Gallery images={galleryImages} alt={p.name} />
         </section>
       )}
 
