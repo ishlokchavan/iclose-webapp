@@ -1,7 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// Server client — runs as the signed-in user; RLS applies. Use in RSC & server actions.
+type CookieToSet = { name: string; value: string; options?: CookieOptions }
+
 export async function createClient() {
   const cookieStore = await cookies()
   return createServerClient(
@@ -10,8 +11,8 @@ export async function createClient() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
-          try { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) }
+        setAll: (cookiesToSet: CookieToSet[]) => {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) }
           catch { /* called from a Server Component; safe to ignore */ }
         },
       },
