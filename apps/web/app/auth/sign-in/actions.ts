@@ -45,14 +45,14 @@ export async function sendMagicLink(formData: FormData) {
   const confirmUrl =
     `${origin}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=/app/explore`
 
-  try {
-    await sendEmail({
-      to:      { email },
-      subject: 'Your iClose sign-in link',
-      html:    magicLink({ confirmUrl }),
-    })
-  } catch (err) {
-    console.error('[magiclink] email send failed', err)
+  const res = await sendEmail({
+    to:      { email },
+    subject: 'Your iClose sign-in link',
+    html:    magicLink({ confirmUrl }),
+  })
+
+  if (!res.ok) {
+    console.error('[magiclink] email send failed', res.error)
     redirect('/auth/sign-in?error=send')
   }
 

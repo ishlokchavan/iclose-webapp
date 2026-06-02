@@ -76,22 +76,23 @@ export async function inviteStaff(formData: FormData) {
   const { data: existing } = await userClient
     .from('profiles').select('id, full_name').ilike('email', email).maybeSingle()
 
+  const nonce = Date.now()
+
   if (existing) {
     // Account exists — just grant the role and notify (no invite link needed).
     await admin.from('profile_roles').upsert(
       { profile_id: existing.id, role },
       { onConflict: 'profile_id,role', ignoreDuplicates: true }
     )
-    try {
-      await sendEmail({
-        to:      { email, name: existing.full_name ?? fullName ?? undefined },
-        subject: 'Your iClose access changed',
-        html:    staffRoleAdded({ name: existing.full_name ?? fullName, role, signInUrl: `${origin}/auth/sign-in` }),
-      })
-    } catch (err) { console.error('[invite] role-added email failed', err) }
+    const res = await sendEmail({
+      to:      { email, name: existing.full_name ?? fullName ?? undefined },
+      subject: 'Your iClose access changed',
+      html:    staffRoleAdded({ name: existing.full_name ?? fullName, role, signInUrl: `${origin}/auth/sign-in` }),
+    })
 
     revalidatePath('/admin/users')
-    redirect(`/admin/users?invited=${encodeURIComponent(email)}&mode=existing`)
+    const fail = res.ok ? '' : `&email_failed=${encodeURIComponent(res.error ?? '1')}`
+    redirect(`/admin/users?invited=${encodeURIComponent(email)}&mode=existing&t=${nonce}${fail}`)
   }
 
   // New account — generate an invite link WITHOUT sending Supabase's email.
@@ -103,7 +104,7 @@ export async function inviteStaff(formData: FormData) {
 
   if (linkErr || !linkData?.user) {
     console.error('[invite] generateLink failed', linkErr)
-    redirect('/admin/users?invite_error=create')
+    redirect(`/admin/users?invite_error=create&t=${nonce}`)
   }
 
   const newUserId = linkData.user.id
@@ -118,14 +119,13 @@ export async function inviteStaff(formData: FormData) {
 
   const confirmUrl = `${origin}/auth/confirm?token_hash=${tokenHash}&type=invite&next=/admin`
 
-  try {
-    await sendEmail({
-      to:      { email, name: fullName || undefined },
-      subject: 'You’ve been invited to iClose',
-      html:    staffInvite({ name: fullName, role, confirmUrl }),
-    })
-  } catch (err) { console.error('[invite] invite email failed', err) }
+  const res = await sendEmail({
+    to:      { email, name: fullName || undefined },
+    subject: 'You’ve been invited to iClose',
+    html:    staffInvite({ name: fullName, role, confirmUrl }),
+  })
 
   revalidatePath('/admin/users')
-  redirect(`/admin/users?invited=${encodeURIComponent(email)}&mode=invited`)
+  const fail = res.ok ? '' : `&email_failed=${encodeURIComponent(res.error ?? '1')}`
+  redirect(`/admin/users?invited=${encodeURIComponent(email)}&mode=invited&t=${nonce}${fail}`)
 }

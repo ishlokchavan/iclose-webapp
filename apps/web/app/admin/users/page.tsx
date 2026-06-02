@@ -18,13 +18,18 @@ const INVITE_ERRORS: Record<string, string> = {
 export default async function AdminUsers({
   searchParams,
 }: {
-  searchParams: { invited?: string; mode?: string; invite_error?: string }
+  searchParams: { invited?: string; mode?: string; invite_error?: string; email_failed?: string; t?: string }
 }) {
   const supabase = await createClient()
 
   const invitedEmail = searchParams.invited ? decodeURIComponent(searchParams.invited) : null
   const inviteMode   = searchParams.mode ?? null
   const inviteError  = searchParams.invite_error ? (INVITE_ERRORS[searchParams.invite_error] ?? 'Invite failed.') : null
+  const emailFailed  = searchParams.email_failed
+    ? decodeURIComponent(searchParams.email_failed)
+    : null
+  // Changes on every submit so the uncontrolled invite form remounts (clears).
+  const formKey = searchParams.t ?? 'idle'
 
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -76,11 +81,25 @@ export default async function AdminUsers({
       </div>
 
       {/* Invite result banner */}
-      {invitedEmail && (
+      {invitedEmail && !emailFailed && (
         <div className="mt-6 rounded-xl bg-accent-soft text-accent px-4 py-3 text-[14px]">
           {inviteMode === 'existing'
             ? <>That account already existed — <strong>{invitedEmail}</strong> has been granted the role and notified.</>
             : <>Invite sent to <strong>{invitedEmail}</strong> via Brevo. They&rsquo;ll activate their account from the email.</>}
+        </div>
+      )}
+      {invitedEmail && emailFailed && (
+        <div className="mt-6 rounded-xl bg-warning/10 text-warning px-4 py-3 text-[14px]">
+          <p className="font-semibold">
+            {inviteMode === 'existing'
+              ? <>Role granted to {invitedEmail}, but the notification email didn&rsquo;t send.</>
+              : <>Account created for {invitedEmail} and the role was granted, but the invite email didn&rsquo;t send.</>}
+          </p>
+          <p className="mt-1 opacity-90">Brevo error: {emailFailed}</p>
+          <p className="mt-1 opacity-90">
+            Set <code className="font-mono">BREVO_API_KEY</code> and a verified <code className="font-mono">BREVO_FROM</code> in
+            Vercel, then redeploy. Until then no emails (including sign-in links) will send.
+          </p>
         </div>
       )}
       {inviteError && (
@@ -91,7 +110,7 @@ export default async function AdminUsers({
       {isSuperAdmin && (
         <section className="mt-8">
           <h2 className="text-[15px] font-semibold mb-3">Invite a teammate</h2>
-          <InviteForm />
+          <InviteForm key={formKey} />
         </section>
       )}
 
