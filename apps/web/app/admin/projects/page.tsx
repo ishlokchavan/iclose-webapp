@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { publishProject, unpublishProject, archiveProject } from './actions'
@@ -98,6 +99,9 @@ export default async function AdminProjects() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              <Link href={`/admin/projects/${p.slug}`}>
+                <Button type="button" size="sm" variant="secondary">Settings</Button>
+              </Link>
               {p.status !== 'published' && (
                 <form action={publishProject}>
                   <input type="hidden" name="id" value={p.id} />

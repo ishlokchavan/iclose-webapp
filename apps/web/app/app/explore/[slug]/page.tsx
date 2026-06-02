@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { EnquireForm } from './enquire-form'
 import { submitEnquiry } from './actions'
+import { YouTubeEmbed } from '@/components/ui/youtube-embed'
 
 // ── types ──────────────────────────────────────────────────────────────
 type Rel<T> = T | T[] | null
@@ -20,6 +21,8 @@ type Unit = {
 }
 type Plan = { id: string; name: string | null; structure: Record<string, number> | null; notes: string | null }
 type FAQ  = { id: string; question: string; answer: string; sort_order: number }
+type MediaRel = { external_id: string | null }
+type ProjectMedia = { role: string; media: Rel<MediaRel> }
 type Project = {
   id: string; slug: string; name: string; description: string | null
   handover_quarter: string | null
@@ -28,6 +31,7 @@ type Project = {
   developer: Rel<{ name: string; website: string | null }>
   area: Rel<{ name: string }>
   units: Unit[]; payment_plans: Plan[]; faqs: FAQ[]
+  project_media: ProjectMedia[]
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────
@@ -106,7 +110,8 @@ export default async function ProjectDetail({
       area:areas(name),
       units(id, unit_type, bedrooms, size_sqft, price_from, currency, availability),
       payment_plans(id, name, structure, notes),
-      faqs(id, question, answer, sort_order)
+      faqs(id, question, answer, sort_order),
+      project_media(role, media:media(external_id))
     `)
     .eq('slug', params.slug)
     .eq('status', 'published')
@@ -122,6 +127,9 @@ export default async function ProjectDetail({
   const developer = one(p.developer)
   const area      = one(p.area)
   const unitTypes = units.map((u) => u.unit_type).filter((t): t is string => !!t)
+
+  const heroVideoRow = (p.project_media ?? []).find((m) => m.role === 'hero_video')
+  const heroVideoId  = heroVideoRow ? (one(heroVideoRow.media))?.external_id ?? null : null
 
   return (
     <div className="max-w-[840px]">
@@ -171,6 +179,13 @@ export default async function ProjectDetail({
           </div>
         )}
       </div>
+
+      {/* Hero video */}
+      {heroVideoId && (
+        <section className="mt-8">
+          <YouTubeEmbed videoId={heroVideoId} title={p.name} />
+        </section>
+      )}
 
       {/* Description */}
       {p.description && (
