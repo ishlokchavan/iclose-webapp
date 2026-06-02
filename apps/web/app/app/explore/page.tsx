@@ -5,9 +5,12 @@ export default async function Explore() {
   const supabase = await createClient()
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('id, slug, name, price_from, currency, handover_quarter, availability')
+    .select('id, slug, name, price_from, currency, handover_quarter, availability, developer:developers(name), area:areas(name)')
     .eq('status', 'published')
     .order('created_at', { ascending: false })
+
+  const nameOf = (rel: { name: string } | { name: string }[] | null | undefined): string =>
+    !rel ? '' : Array.isArray(rel) ? (rel[0]?.name ?? '') : rel.name
 
   return (
     <div>
@@ -29,6 +32,9 @@ export default async function Explore() {
         {projects?.map((p) => (
           <article key={p.id} className="rounded-2xl bg-surface-2 p-6 shadow-1">
             <h2 className="text-[17px] font-semibold">{p.name}</h2>
+            <p className="mt-1 text-[13px] text-text-tertiary">
+              {[nameOf(p.developer), nameOf(p.area)].filter(Boolean).join(' · ')}
+            </p>
             <p className="mt-1 text-[15px] text-text-secondary">Handover {p.handover_quarter ?? 'TBC'}</p>
             <p className="mt-3 text-[15px]">
               From <span className="font-semibold tabular-nums">{p.currency} {Number(p.price_from ?? 0).toLocaleString()}</span>

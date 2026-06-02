@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
@@ -14,7 +15,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen">
       <nav className="flex items-center gap-6 px-6 h-16 border-b border-separator">
-        <span className="text-[17px] font-semibold">iClose · Admin</span>
+        <Link href="/admin" className="text-[17px] font-semibold">iClose · Admin</Link>
+        <Link href="/admin/projects" className="text-[15px] text-text-secondary hover:text-text">Projects</Link>
       </nav>
       <main className="px-6 max-w-[1280px] mx-auto py-8">{children}</main>
     </div>
