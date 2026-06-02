@@ -29,13 +29,13 @@ export default async function AreaPage({ params }: { params: { slug: string } })
 
   return (
     <div>
-      <Link href="/app/explore"
+      <Link href="/app/areas"
         className="inline-flex items-center gap-1 text-[14px] text-text-secondary hover:text-text mb-6 -ml-1">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
           <path d="M15 18l-6-6 6-6"/>
         </svg>
-        Explore
+        Areas
       </Link>
 
       <p className="text-[13px] font-medium text-text-tertiary uppercase tracking-wide">{area.city ?? 'Dubai'}</p>

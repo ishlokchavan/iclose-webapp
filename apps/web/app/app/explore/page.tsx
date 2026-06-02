@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ExploreFilters } from './explore-filters'
 import { ProjectGrid, coverUrl, type ProjectCardData } from '@/components/project-card'
@@ -43,6 +44,11 @@ export default async function Explore({ searchParams }: { searchParams: SearchPa
     <div>
       <h1 className="text-[28px] font-semibold tracking-[-0.02em]">Explore off-plan projects</h1>
       <p className="mt-2 text-[15px] text-text-secondary">Every project, one honest view.</p>
+
+      <div className="mt-3 flex items-center gap-4 text-[14px]">
+        <Link href="/app/areas" className="text-accent hover:opacity-80 transition-opacity">Browse by area</Link>
+        <Link href="/app/developers" className="text-accent hover:opacity-80 transition-opacity">Browse by developer</Link>
+      </div>
 
       <div className="mt-6">
         <Suspense>
