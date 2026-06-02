@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ProjectGrid, type ProjectCardData } from '@/components/project-card'
+import { ProjectGrid, coverUrl, type ProjectCardData } from '@/components/project-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,13 +17,15 @@ export default async function DeveloperPage({ params }: { params: { slug: string
 
   const { data: projectsData } = await supabase
     .from('projects')
-    .select('id, slug, name, price_from, currency, handover_quarter, availability, area:areas(name)')
+    .select('id, slug, name, price_from, currency, handover_quarter, availability, area:areas(name), project_media(role, sort_order, media:media(storage_path))')
     .eq('status', 'published')
     .eq('developer_id', developer.id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
-  const projects = (projectsData ?? []) as unknown as ProjectCardData[]
+  const projects = ((projectsData ?? []) as any[]).map((p) => ({
+    ...p, coverUrl: coverUrl(p.project_media),
+  })) as ProjectCardData[]
 
   return (
     <div>
