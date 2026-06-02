@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+const IMAGES_BUCKET = 'project-images'
 
 async function assertStaff() {
   const supabase = await createClient()
@@ -106,6 +109,88 @@ export async function setHeroVideo(formData: FormData) {
         })
       }
     }
+  }
+
+  revalidatePath(`/admin/projects/${slug}`)
+  revalidatePath(`/app/explore/${slug}`)
+}
+
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+}
+
+export async function uploadProjectImages(formData: FormData) {
+  const supabase = await assertStaff()
+  if (!supabase) return
+
+  const slug = String(formData.get('slug') ?? '').trim()
+  const { data: project } = await supabase
+    .from('projects').select('id').eq('slug', slug).maybeSingle()
+  if (!project) return
+
+  const files = formData.getAll('images').filter((f): f is File => f instanceof File && f.size > 0)
+  if (files.length === 0) return
+
+  const admin = createAdminClient()
+
+  // Continue sort_order after any existing gallery images.
+  const { data: existing } = await supabase
+    .from('project_media')
+    .select('sort_order')
+    .eq('project_id', project.id)
+    .eq('role', 'gallery')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+  let nextOrder = (existing?.[0]?.sort_order ?? -1) + 1
+
+  for (const file of files) {
+    const ext  = EXT[file.type]
+    if (!ext) continue // skip disallowed types
+    const path = `${project.id}/${crypto.randomUUID()}.${ext}`
+    const bytes = new Uint8Array(await file.arrayBuffer())
+
+    const { error: upErr } = await admin.storage
+      .from(IMAGES_BUCKET)
+      .upload(path, bytes, { contentType: file.type, upsert: false })
+    if (upErr) { console.error('[gallery] upload failed', upErr); continue }
+
+    const { data: media, error: mErr } = await admin
+      .from('media')
+      .insert({ type: 'image', provider: 'upload', storage_path: path })
+      .select('id')
+      .single()
+    if (mErr || !media) { console.error('[gallery] media insert failed', mErr); continue }
+
+    await admin.from('project_media').insert({
+      project_id: project.id,
+      media_id:   media.id,
+      role:       'gallery',
+      sort_order: nextOrder++,
+    })
+  }
+
+  revalidatePath(`/admin/projects/${slug}`)
+  revalidatePath(`/app/explore/${slug}`)
+}
+
+export async function deleteProjectImage(formData: FormData) {
+  const supabase = await assertStaff()
+  if (!supabase) return
+
+  const slug    = String(formData.get('slug') ?? '').trim()
+  const mediaId = String(formData.get('media_id') ?? '').trim()
+  if (!mediaId) return
+
+  const admin = createAdminClient()
+
+  const { data: media } = await admin
+    .from('media').select('storage_path').eq('id', mediaId).maybeSingle()
+
+  // Remove the join row, the media row, then the storage object.
+  await admin.from('project_media').delete().eq('media_id', mediaId)
+  await admin.from('media').delete().eq('id', mediaId)
+  if (media?.storage_path) {
+    await admin.storage.from(IMAGES_BUCKET).remove([media.storage_path])
   }
 
   revalidatePath(`/admin/projects/${slug}`)

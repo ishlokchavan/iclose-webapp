@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { YouTubeEmbed } from '@/components/ui/youtube-embed'
 import { ProjectForm } from '../project-form'
+import { GalleryManager } from './gallery-manager'
 import { setHeroVideo, updateProject } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -53,6 +54,23 @@ export default async function AdminProjectSettings({ params }: { params: { slug:
     ? (Array.isArray(heroRow.media) ? heroRow.media[0] : heroRow.media)
     : null
   const currentVideoId = heroMedia?.external_id ?? null
+
+  // Gallery images
+  const { data: galleryRows } = await supabase
+    .from('project_media')
+    .select('media:media(id, storage_path)')
+    .eq('project_id', project.id)
+    .eq('role', 'gallery')
+    .order('sort_order', { ascending: true })
+
+  type GalleryMedia = { id: string; storage_path: string | null }
+  const galleryImages = ((galleryRows ?? []) as { media: GalleryMedia | GalleryMedia[] | null }[])
+    .map((r) => (Array.isArray(r.media) ? r.media[0] : r.media))
+    .filter((m): m is GalleryMedia => !!m && !!m.storage_path)
+    .map((m) => ({
+      mediaId: m.id,
+      url: supabase.storage.from('project-images').getPublicUrl(m.storage_path!).data.publicUrl,
+    }))
 
   // Lookups for form dropdowns
   const [{ data: devs }, { data: areaRows }] = await Promise.all([
@@ -115,6 +133,15 @@ export default async function AdminProjectSettings({ params }: { params: { slug:
             }}
           />
         </form>
+      </section>
+
+      {/* Gallery */}
+      <section className="mt-10 pt-8 border-t border-separator">
+        <h2 className="text-[20px] font-semibold mb-1">Photos</h2>
+        <p className="text-[14px] text-text-secondary mb-6">
+          Shown as a gallery on the project detail page. The first photo is used as the cover.
+        </p>
+        <GalleryManager slug={project.slug} images={galleryImages} />
       </section>
 
       {/* Hero video */}

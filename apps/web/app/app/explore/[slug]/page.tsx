@@ -22,8 +22,8 @@ type Unit = {
 }
 type Plan = { id: string; name: string | null; structure: Record<string, number> | null; notes: string | null }
 type FAQ  = { id: string; question: string; answer: string; sort_order: number }
-type MediaRel = { external_id: string | null }
-type ProjectMedia = { role: string; media: Rel<MediaRel> }
+type MediaRel = { external_id: string | null; storage_path: string | null }
+type ProjectMedia = { role: string; sort_order: number | null; media: Rel<MediaRel> }
 type Project = {
   id: string; slug: string; name: string; description: string | null
   handover_quarter: string | null
@@ -113,7 +113,7 @@ export default async function ProjectDetail({
       units(id, unit_type, bedrooms, size_sqft, price_from, currency, availability),
       payment_plans(id, name, structure, notes),
       faqs(id, question, answer, sort_order),
-      project_media(role, media:media(external_id))
+      project_media(role, sort_order, media:media(external_id, storage_path))
     `)
     .eq('slug', params.slug)
     .eq('status', 'published')
@@ -139,6 +139,13 @@ export default async function ProjectDetail({
 
   const heroVideoRow = (p.project_media ?? []).find((m) => m.role === 'hero_video')
   const heroVideoId  = heroVideoRow ? (one(heroVideoRow.media))?.external_id ?? null : null
+
+  const galleryImages = (p.project_media ?? [])
+    .filter((m) => m.role === 'gallery')
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((m) => one(m.media)?.storage_path)
+    .filter((path): path is string => !!path)
+    .map((path) => supabase.storage.from('project-images').getPublicUrl(path).data.publicUrl)
 
   return (
     <div className="max-w-[840px]">
@@ -205,6 +212,30 @@ export default async function ProjectDetail({
           </div>
         )}
       </div>
+
+      {/* Gallery */}
+      {galleryImages.length > 0 && (
+        <section className="mt-8">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {galleryImages.map((url, i) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`relative block overflow-hidden rounded-2xl bg-surface-2 ${
+                  i === 0 ? 'col-span-2 aspect-[16/9]' : 'aspect-[4/3]'
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`${p.name} photo ${i + 1}`}
+                  className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300"
+                  loading={i === 0 ? 'eager' : 'lazy'} />
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Hero video */}
       {heroVideoId && (
