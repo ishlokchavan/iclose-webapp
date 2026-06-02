@@ -1,0 +1,17 @@
+# deps
+node_modules/
+.pnp.*
+# builds
+.next/
+out/
+dist/
+.turbo/
+# env — NEVER commit real secrets
+.env
+.env*.local
+.env.production
+# misc
+.DS_Store
+*.log
+.vercel
+coverage/
