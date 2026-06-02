@@ -18,6 +18,15 @@ export default function AdminHome() {
             Review the catalog and publish projects to Explore.
           </p>
         </Link>
+        <Link
+          href="/admin/leads"
+          className="rounded-2xl bg-surface-2 p-6 shadow-1 hover:bg-surface-3 transition-colors"
+        >
+          <h2 className="text-[17px] font-semibold">Leads</h2>
+          <p className="mt-2 text-[15px] text-text-secondary">
+            All buyer enquiries with status tracking.
+          </p>
+        </Link>
       </div>
     </div>
   )
