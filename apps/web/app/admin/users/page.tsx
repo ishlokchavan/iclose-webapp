@@ -20,7 +20,7 @@ export default async function AdminUsers() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, phone, created_at, profile_roles(role)')
+    .select('id, full_name, email, phone, created_at, profile_roles!profile_roles_profile_id_fkey(role)')
     .order('created_at', { ascending: false })
 
   type ProfileRow = {
