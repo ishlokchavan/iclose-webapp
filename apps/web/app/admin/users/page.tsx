@@ -110,8 +110,9 @@ export default async function AdminUsers({
           </p>
           <p className="mt-1 opacity-90">Brevo error: {emailFailed}</p>
           <p className="mt-1 opacity-90">
-            Set <code className="font-mono">BREVO_API_KEY</code> and a verified <code className="font-mono">BREVO_FROM</code> in
-            Vercel, then redeploy. Until then no emails (including sign-in links) will send.
+            Set <code className="font-mono">BREVO_SMTP_USER</code>, <code className="font-mono">BREVO_SMTP_KEY</code> and a
+            verified <code className="font-mono">BREVO_FROM</code> in Vercel, then redeploy. Until then no emails
+            (including sign-in links) will send.
           </p>
         </div>
       )}
