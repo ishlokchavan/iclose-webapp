@@ -24,6 +24,10 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname
   const isPrivate = path.startsWith('/app') || path.startsWith('/admin')
 
+  // Forward path so server-component layouts can redirect conditionally
+  // (e.g. onboarding check) without a redirect loop.
+  response.headers.set('x-pathname', path)
+
   if (!user && isPrivate) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/sign-in'

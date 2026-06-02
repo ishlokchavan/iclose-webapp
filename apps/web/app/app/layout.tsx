@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { AppNav } from '@/components/nav/app-nav'
 
@@ -8,6 +9,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/sign-in')
+
+  // Redirect first-time buyers to onboarding — skip if they're already there.
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  if (!pathname.startsWith('/app/onboarding')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile && !profile.onboarding_completed) {
+      redirect('/app/onboarding')
+    }
+  }
 
   return (
     <div className="min-h-screen">
