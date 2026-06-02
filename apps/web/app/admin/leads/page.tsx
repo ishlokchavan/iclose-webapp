@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { StatusSelect } from './status-select'
 import { AssignSelect } from './assign-select'
@@ -106,9 +107,10 @@ export default async function AdminLeads() {
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[15px] font-semibold">
+                    <Link href={`/admin/leads/${lead.id}`}
+                      className="text-[15px] font-semibold hover:text-accent transition-colors">
                       {buyer?.full_name ?? buyer?.email ?? 'Unknown buyer'}
-                    </span>
+                    </Link>
                     {buyer?.phone && (
                       <span className="text-[13px] text-text-tertiary">{buyer.phone}</span>
                     )}
