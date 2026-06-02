@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ProfileForm } from './profile-form'
 import { updateProfile } from './actions'
 import { budgetLabel } from '@/lib/buyer'
-import { TXN_PIPELINE, TXN_STATUS_LABEL, txnStatusIndex, isTerminal, money } from '@/lib/txn'
+import { CASHBACK_STAGES, CASHBACK_LABEL, cashbackStageIndex, isCashbackTerminal, labelOf, CATEGORY_OPTIONS, PROPERTY_TYPE_OPTIONS, money } from '@/lib/txn'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,23 +46,23 @@ export default async function Me() {
   const preferredAreaIds = (profile?.preferred_areas as string[] | null) ?? []
   const budget = budgetLabel(profile?.budget_band as string | null)
 
-  // Buyer's own transactions (RLS: txn_buyer_read_own) with progress + next payment.
+  // Buyer's own purchases (RLS: txn_buyer_read_own) + cashback status.
   const { data: txnData } = await supabase
     .from('transactions')
     .select(`
-      id, status, unit_price, currency, handover_estimate, created_at,
+      id, cashback_status, unit_no, category, property_type, unit_price, currency, created_at,
       project:projects(name, slug),
-      transaction_milestones(status),
-      payment_schedule(amount, currency, due_date, status)
+      area:areas(name),
+      developer:developers(name)
     `)
     .order('created_at', { ascending: false })
 
   type Txn = {
-    id: string; status: string; unit_price: number | null; currency: string | null
-    handover_estimate: string | null; created_at: string
+    id: string; cashback_status: string; unit_no: string | null; category: string | null
+    property_type: string | null; unit_price: number | null; currency: string | null; created_at: string
     project: Rel<{ name: string; slug: string }>
-    transaction_milestones: { status: string | null }[]
-    payment_schedule: { amount: number | null; currency: string | null; due_date: string | null; status: string | null }[]
+    area: Rel<{ name: string }>
+    developer: Rel<{ name: string }>
   }
   const txns = (txnData ?? []) as unknown as Txn[]
 
@@ -155,12 +155,15 @@ export default async function Me() {
           <div className="flex flex-col gap-4">
             {txns.map((tx) => {
               const project = one(tx.project)
-              const idx = txnStatusIndex(tx.status)
-              const msDone = tx.transaction_milestones.filter((m) => m.status === 'completed').length
-              const msTotal = tx.transaction_milestones.length
-              const nextDue = tx.payment_schedule
-                .filter((p) => p.status !== 'paid' && p.due_date)
-                .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1))[0]
+              const area = one(tx.area)
+              const developer = one(tx.developer)
+              const idx = cashbackStageIndex(tx.cashback_status)
+              const meta = [
+                labelOf(PROPERTY_TYPE_OPTIONS, tx.property_type),
+                tx.unit_no ? `Unit ${tx.unit_no}` : null,
+                area?.name,
+                developer?.name,
+              ].filter(Boolean).join(' · ')
               return (
                 <div key={tx.id} className="rounded-2xl bg-surface-2 p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -170,46 +173,28 @@ export default async function Me() {
                           {project.name}
                         </Link>
                       ) : <span className="text-[16px] font-semibold">Your property</span>}
-                      <p className="mt-0.5 text-[13px] text-text-secondary">
-                        {money(tx.unit_price, tx.currency ?? 'AED')}
-                        {tx.handover_estimate ? ` · handover ${new Date(tx.handover_estimate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}
-                      </p>
+                      <p className="mt-0.5 text-[13px] text-text-secondary">{money(tx.unit_price, tx.currency ?? 'AED')}</p>
+                      {meta && <p className="mt-0.5 text-[12px] text-text-tertiary">{meta}</p>}
                     </div>
                     <span className={`shrink-0 rounded-pill px-3 py-1 text-[12px] font-semibold ${
-                      isTerminal(tx.status) ? 'bg-surface-3 text-danger' : 'bg-accent-soft text-accent'
+                      isCashbackTerminal(tx.cashback_status) ? 'bg-surface-3 text-danger' : 'bg-accent-soft text-accent'
                     }`}>
-                      {TXN_STATUS_LABEL[tx.status] ?? tx.status}
+                      {CASHBACK_LABEL[tx.cashback_status] ?? tx.cashback_status}
                     </span>
                   </div>
 
-                  {/* Pipeline */}
-                  {!isTerminal(tx.status) && (
+                  {/* Cashback journey */}
+                  {!isCashbackTerminal(tx.cashback_status) && (
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {TXN_PIPELINE.map((s, i) => (
+                      {CASHBACK_STAGES.map((s, i) => (
                         <span key={s} className={`rounded-pill px-2 py-[3px] text-[10px] font-medium ${
-                          tx.status === s ? 'bg-accent text-white'
+                          tx.cashback_status === s ? 'bg-accent text-white'
                           : idx >= i ? 'bg-accent-soft text-accent'
                           : 'bg-surface-3 text-text-tertiary'
                         }`}>
-                          {TXN_STATUS_LABEL[s]}
+                          {CASHBACK_LABEL[s]}
                         </span>
                       ))}
-                    </div>
-                  )}
-
-                  {(msTotal > 0 || nextDue) && (
-                    <div className="mt-4 flex flex-wrap gap-3 text-[13px]">
-                      {msTotal > 0 && (
-                        <span className="rounded-pill bg-surface-1 px-3 py-1 text-text-secondary">
-                          {msDone}/{msTotal} milestones done
-                        </span>
-                      )}
-                      {nextDue && (
-                        <span className="rounded-pill bg-surface-1 px-3 py-1 text-text-secondary">
-                          Next payment: {money(nextDue.amount, nextDue.currency ?? 'AED')}
-                          {nextDue.due_date ? ` · due ${new Date(nextDue.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
-                        </span>
-                      )}
                     </div>
                   )}
                 </div>

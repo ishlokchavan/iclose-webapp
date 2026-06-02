@@ -1,48 +1,58 @@
-// Transaction status pipeline + labels. Mirrors the txn_status enum.
-// Cashback/commission figures are NOT part of this module — they are internal
-// (projects.commission_pct etc.) and computed in the cashback engine (S6).
+// Simplified, cashback-first transaction model.
+// The buyer mainly wants to know: did the purchase go through, are we waiting on
+// the developer's commission, and has cashback been paid. We do NOT surface
+// commission amounts or guarantee cashback here (internal + legal posture).
 
-export const TXN_PIPELINE = [
-  'reserved',
-  'booked',
-  'spa_signed',
-  'oqood_registered',
-  'under_construction',
-  'handover',
-  'title_transferred',
+export const CASHBACK_STAGES = [
+  'purchased',
+  'awaiting_commission',
+  'commission_received',
+  'cashback_paid',
 ] as const
 
-export const TXN_TERMINAL = ['cancelled', 'defaulted'] as const
+export const CASHBACK_TERMINAL = ['cancelled', 'not_eligible'] as const
 
-export type TxnStatus = (typeof TXN_PIPELINE)[number] | (typeof TXN_TERMINAL)[number]
+export type CashbackStage = (typeof CASHBACK_STAGES)[number] | (typeof CASHBACK_TERMINAL)[number]
 
-export const TXN_STATUS_LABEL: Record<string, string> = {
-  reserved:           'Reserved',
-  booked:             'Booked',
-  spa_signed:         'SPA signed',
-  oqood_registered:   'Oqood registered',
-  under_construction: 'Under construction',
-  handover:           'Handover',
-  title_transferred:  'Title transferred',
-  cancelled:          'Cancelled',
-  defaulted:          'Defaulted',
+export const CASHBACK_LABEL: Record<string, string> = {
+  purchased:            'Purchased',
+  awaiting_commission:  'Awaiting developer commission',
+  commission_received:  'Commission received',
+  cashback_paid:        'Cashback paid',
+  cancelled:            'Cancelled',
+  not_eligible:         'Not eligible',
 }
 
-export const TXN_TYPE_LABEL: Record<string, string> = {
-  offplan_primary:    'Off-plan (primary)',
-  offplan_assignment: 'Off-plan (assignment)',
-  secondary_resale:   'Secondary resale',
+export const ALL_CASHBACK_STAGES = [...CASHBACK_STAGES, ...CASHBACK_TERMINAL]
+
+export function cashbackStageIndex(stage: string): number {
+  return (CASHBACK_STAGES as readonly string[]).indexOf(stage)
 }
 
-export const ALL_TXN_STATUSES = [...TXN_PIPELINE, ...TXN_TERMINAL]
-
-export function txnStatusIndex(status: string): number {
-  return (TXN_PIPELINE as readonly string[]).indexOf(status)
+export function isCashbackTerminal(stage: string): boolean {
+  return (CASHBACK_TERMINAL as readonly string[]).includes(stage)
 }
 
-export function isTerminal(status: string): boolean {
-  return (TXN_TERMINAL as readonly string[]).includes(status)
-}
+// Unit detail picklists.
+export const CATEGORY_OPTIONS = [
+  { value: 'offplan',    label: 'Off-plan' },
+  { value: 'ready',      label: 'Ready' },
+  { value: 'commercial', label: 'Commercial' },
+] as const
+
+export const PROPERTY_TYPE_OPTIONS = [
+  { value: 'apartment', label: 'Apartment' },
+  { value: 'villa',     label: 'Villa' },
+  { value: 'townhouse', label: 'Townhouse' },
+  { value: 'penthouse', label: 'Penthouse' },
+  { value: 'land',      label: 'Land' },
+  { value: 'duplex',    label: 'Duplex' },
+] as const
+
+export const labelOf = (
+  opts: readonly { value: string; label: string }[],
+  value: string | null | undefined,
+): string | null => (value ? (opts.find((o) => o.value === value)?.label ?? value) : null)
 
 export function money(amount: number | null | undefined, currency = 'AED'): string {
   if (amount == null) return '—'

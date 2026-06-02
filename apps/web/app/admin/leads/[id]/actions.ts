@@ -65,15 +65,23 @@ export async function convertLeadToTransaction(formData: FormData) {
     .from('transactions').select('id').eq('lead_id', leadId).maybeSingle()
   if (existing) redirect(`/admin/transactions/${existing.id}`)
 
+  // Prefill location + developer from the project the buyer enquired about.
+  const { data: project } = lead.project_id
+    ? await ctx.supabase.from('projects').select('area_id, developer_id').eq('id', lead.project_id).maybeSingle()
+    : { data: null }
+
   const { data: txn } = await ctx.supabase
     .from('transactions')
     .insert({
-      lead_id:    lead.id,
-      buyer_id:   lead.buyer_id,
-      project_id: lead.project_id,
-      type:       'offplan_primary',
-      status:     'reserved',
-      currency:   'AED',
+      lead_id:         lead.id,
+      buyer_id:        lead.buyer_id,
+      project_id:      lead.project_id,
+      area_id:         project?.area_id ?? null,
+      developer_id:    project?.developer_id ?? null,
+      type:            'offplan_primary',
+      status:          'reserved',
+      cashback_status: 'purchased',
+      currency:        'AED',
     })
     .select('id')
     .single()
@@ -84,7 +92,7 @@ export async function convertLeadToTransaction(formData: FormData) {
 
   await recordAudit(ctx.supabase, {
     actorId: ctx.user.id, action: 'txn.create', entityType: 'transaction', entityId: txn.id,
-    after: { lead_id: leadId, status: 'reserved' },
+    after: { lead_id: leadId, cashback_status: 'purchased' },
   })
 
   revalidatePath(`/admin/leads/${leadId}`)
