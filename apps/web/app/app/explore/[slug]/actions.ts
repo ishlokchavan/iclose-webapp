@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email'
 import { enquiryConfirmation, newLeadNotification } from '@/lib/email/templates'
+import { getSiteOrigin } from '@/lib/site'
 
 export async function submitEnquiry(formData: FormData) {
   const supabase = await createClient()
@@ -71,6 +72,7 @@ export async function submitEnquiry(formData: FormData) {
         .maybeSingle()
       const resolvedName  = buyerName  || (profile?.full_name as string | null) || ''
       const resolvedPhone = phone      || (profile?.phone     as string | null) || null
+      const baseUrl = await getSiteOrigin()
 
       void Promise.all([
         // Confirmation to buyer
@@ -83,6 +85,7 @@ export async function submitEnquiry(formData: FormData) {
                 projectName: project.name,
                 projectSlug,
                 unitType,
+                baseUrl,
               }),
             })
           : Promise.resolve(),
@@ -100,6 +103,7 @@ export async function submitEnquiry(formData: FormData) {
                 projectSlug,
                 unitType,
                 leadId:      lead.id,
+                baseUrl,
               }),
             })
           : Promise.resolve(),

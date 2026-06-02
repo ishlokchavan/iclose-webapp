@@ -82,11 +82,13 @@ export function enquiryConfirmation({
   projectName,
   projectSlug,
   unitType,
+  baseUrl,
 }: {
   buyerName: string
   projectName: string
   projectSlug: string
   unitType: string | null
+  baseUrl: string
 }): string {
   const greeting = buyerName ? `Hi ${buyerName},` : 'Hi there,'
   const unit = unitType ? ` (${unitType})` : ''
@@ -102,7 +104,7 @@ export function enquiryConfirmation({
     ])}
     ${divider()}
     ${p('In the meantime you can browse more projects or update your preferences in your profile.', true)}
-    <a href="https://iclose.ae/app/explore"
+    <a href="${baseUrl}/app/explore"
       style="display:inline-block;padding:12px 24px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:14px;font-weight:600;text-decoration:none;">
       Back to Explore
     </a>
@@ -119,6 +121,7 @@ export function newLeadNotification({
   projectSlug,
   unitType,
   leadId,
+  baseUrl,
 }: {
   buyerName: string
   buyerEmail: string
@@ -127,6 +130,7 @@ export function newLeadNotification({
   projectSlug: string
   unitType: string | null
   leadId: string
+  baseUrl: string
 }): string {
   const rows: [string, string][] = [
     ['Name',    buyerName  || '—'],
@@ -143,7 +147,7 @@ export function newLeadNotification({
     ${divider()}
     ${table(rows)}
     ${divider()}
-    <a href="https://iclose.ae/admin/leads"
+    <a href="${baseUrl}/admin/leads/${leadId}"
       style="display:inline-block;padding:12px 24px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:14px;font-weight:600;text-decoration:none;">
       View in Admin
     </a>
@@ -161,6 +165,7 @@ export function rmAssignmentNotification({
   unitType,
   leadId,
   slaDate,
+  baseUrl,
 }: {
   rmName: string
   buyerName: string
@@ -170,6 +175,7 @@ export function rmAssignmentNotification({
   unitType: string | null
   leadId: string
   slaDate: string | null
+  baseUrl: string
 }): string {
   const greeting = rmName ? `Hi ${rmName},` : 'Hi,'
 
@@ -189,7 +195,7 @@ export function rmAssignmentNotification({
     ${divider()}
     ${table(rows)}
     ${divider()}
-    <a href="https://iclose.ae/admin/leads/${leadId}"
+    <a href="${baseUrl}/admin/leads/${leadId}"
       style="display:inline-block;padding:12px 24px;background:#0A84FF;color:#ffffff;border-radius:100px;font-size:14px;font-weight:600;text-decoration:none;">
       View lead
     </a>

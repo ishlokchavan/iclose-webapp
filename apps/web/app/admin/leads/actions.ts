@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email'
 import { rmAssignmentNotification } from '@/lib/email/templates'
+import { getSiteOrigin } from '@/lib/site'
 
 const STAFF_ROLES = ['rm', 'ops_manager', 'finance', 'super_admin'] as const
 
@@ -70,6 +71,8 @@ export async function assignLead(formData: FormData) {
 
   // Notify the RM by email when they are assigned
   if (rm) {
+    // Resolve base URL in request scope; headers() isn't available in the detached task below.
+    const baseUrl = await getSiteOrigin()
     void (async () => {
       try {
         const [{ data: rmProfile }, { data: leadFull }] = await Promise.all([
@@ -105,6 +108,7 @@ export async function assignLead(formData: FormData) {
             unitType:    leadFull.unit_type ?? null,
             leadId:      id,
             slaDate:     leadFull.sla_first_response_due ?? null,
+            baseUrl,
           }),
         })
       } catch (err) {
