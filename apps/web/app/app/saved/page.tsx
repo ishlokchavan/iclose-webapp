@@ -1,7 +1,9 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { unsaveProject } from './actions'
+import { coverUrl } from '@/components/project-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,12 +34,14 @@ export default async function Saved() {
         id, slug, name, price_from, currency,
         handover_quarter, availability,
         developer:developers(name),
-        area:areas(name)
+        area:areas(name),
+        project_media(role, sort_order, media:media(storage_path))
       )
     `)
     .is('unit_id', null)
     .order('created_at', { ascending: false })
 
+  type MediaRow = { role: string; sort_order: number | null; media: { storage_path: string | null } | { storage_path: string | null }[] | null }
   type SavedRow = {
     id: string
     project_id: string
@@ -48,6 +52,7 @@ export default async function Saved() {
       handover_quarter: string | null; availability: string | null
       developer: Rel<{ name: string }>
       area: Rel<{ name: string }>
+      project_media: MediaRow[]
     }>
   }
 
@@ -84,46 +89,56 @@ export default async function Saved() {
             const p = one(row.project)
             if (!p) return null
             const avail = p.availability ?? 'available'
+            const cover = coverUrl(p.project_media)
             return (
               <div key={row.id} className="group relative rounded-2xl bg-surface-2 shadow-1 flex flex-col overflow-hidden">
-                {/* Unsave button */}
-                <form action={unsaveProject}
-                  className="absolute top-3 right-3 z-10">
+                {/* Unsave button (overlaid on cover) */}
+                <form action={unsaveProject} className="absolute top-2.5 right-2.5 z-10">
                   <input type="hidden" name="project_id" value={p.id} />
                   <input type="hidden" name="slug"       value={p.slug} />
                   <button type="submit"
                     title="Remove from saved"
                     className="w-8 h-8 flex items-center justify-center rounded-full
-                      bg-surface-1/80 backdrop-blur-sm hover:bg-danger/10 hover:text-danger
-                      text-text-secondary transition-colors">
+                      bg-black/55 backdrop-blur-sm text-white hover:bg-danger transition-colors">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
                     </svg>
                   </button>
                 </form>
 
-                <Link href={`/app/explore/${p.slug}`} className="flex flex-col flex-1 p-6 hover:bg-surface-3 transition-colors">
-                  <div className="flex items-start justify-between gap-2 pr-8">
-                    <h2 className="text-[17px] font-semibold group-hover:text-accent transition-colors">
-                      {p.name}
-                    </h2>
-                    <span className={`shrink-0 inline-block rounded-pill text-[11px] font-semibold px-2 py-[2px] ${
+                <Link href={`/app/explore/${p.slug}`} className="flex flex-col flex-1">
+                  <div className="relative aspect-[16/10]">
+                    {cover ? (
+                      <Image src={cover} alt={p.name} fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-surface-3">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className="text-text-tertiary opacity-60">
+                          <path d="M3 21V8l9-5 9 5v13" /><path d="M9 21v-7h6v7" />
+                        </svg>
+                      </div>
+                    )}
+                    <span className={`absolute top-2.5 left-2.5 inline-block rounded-pill text-[11px] font-semibold px-2 py-[2px] ${
                       AVAIL_STYLE[avail] ?? 'bg-surface-3 text-text-secondary'
                     }`}>
                       {AVAIL_LABEL[avail] ?? avail}
                     </span>
                   </div>
-                  <p className="mt-1 text-[13px] text-text-tertiary">
-                    {[nameOf(p.developer), nameOf(p.area)].filter(Boolean).join(' · ')}
-                  </p>
-                  <p className="mt-1 text-[14px] text-text-secondary">
-                    Handover {p.handover_quarter ?? 'TBC'}
-                  </p>
-                  <p className="mt-auto pt-4 text-[15px]">
-                    From <span className="font-semibold tabular-nums">
-                      {p.currency ?? 'AED'} {Number(p.price_from ?? 0).toLocaleString()}
-                    </span>
-                  </p>
+
+                  <div className="p-5 flex flex-col flex-1">
+                    <h2 className="text-[17px] font-semibold group-hover:text-accent transition-colors">{p.name}</h2>
+                    <p className="mt-1 text-[13px] text-text-tertiary">
+                      {[nameOf(p.developer), nameOf(p.area)].filter(Boolean).join(' · ')}
+                    </p>
+                    <p className="mt-1 text-[14px] text-text-secondary">Handover {p.handover_quarter ?? 'TBC'}</p>
+                    <p className="mt-auto pt-4 text-[15px]">
+                      From <span className="font-semibold tabular-nums">
+                        {p.currency ?? 'AED'} {Number(p.price_from ?? 0).toLocaleString()}
+                      </span>
+                    </p>
+                  </div>
                 </Link>
               </div>
             )

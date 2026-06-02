@@ -173,6 +173,29 @@ export async function uploadProjectImages(formData: FormData) {
   revalidatePath(`/app/explore/${slug}`)
 }
 
+export async function reorderProjectImages(slug: string, orderedMediaIds: string[]) {
+  const supabase = await assertStaff()
+  if (!supabase) return
+
+  const { data: project } = await supabase
+    .from('projects').select('id').eq('slug', slug).maybeSingle()
+  if (!project) return
+
+  const admin = createAdminClient()
+  await Promise.all(
+    orderedMediaIds.map((mediaId, i) =>
+      admin.from('project_media')
+        .update({ sort_order: i })
+        .eq('project_id', project.id)
+        .eq('media_id', mediaId)
+        .eq('role', 'gallery')
+    )
+  )
+
+  revalidatePath(`/admin/projects/${slug}`)
+  revalidatePath(`/app/explore/${slug}`)
+}
+
 export async function deleteProjectImage(formData: FormData) {
   const supabase = await assertStaff()
   if (!supabase) return
